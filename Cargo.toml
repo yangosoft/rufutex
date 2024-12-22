@@ -1,0 +1,23 @@
+[package]
+name = "rufutex"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yangosoft", "Yangosoft <-@-.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yangosoft/rufutex"
+keywords = ["futex", "Linux"]
+description = "Tiny wrapper of futex syscall"
+
+[dependencies]
+libc = "0.2"
+log = "0.4"
+rushm = "0.2"
+
+[lib]
+name = "rufutex"
+path = "src/lib.rs"
+
+
+[[example]]
+name = "rufutex-example"
+path = "examples/rufutex-example.rs"
