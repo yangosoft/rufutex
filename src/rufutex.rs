@@ -2,7 +2,8 @@ use libc::c_void;
 //use log::debug;
 use std::sync::atomic::{AtomicU32, Ordering::SeqCst};
 
-/// Mutex implementation based on https://eli.thegreenplace.net/2018/basics-of-futexes/
+/// Mutex implementation based on https://eli.thegreenplace.net/2018/basics-of-futexes/ of the
+/// Ulrich Drepper's Futexes are Tricky paper https://www.akkadia.org/drepper/futex.pdf
 /// UNLOCKED 0 means unlocked
 /// LOCKED_NO_WAITERS 1 means locked, no waiters
 /// LOCKED_WAITERS 2 means locked, there are waiters in lock()

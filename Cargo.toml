@@ -5,8 +5,8 @@ edition = "2021"
 authors = ["Yangosoft", "Yangosoft <-@-.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/yangosoft/rufutex"
-keywords = ["futex", "Linux"]
-description = "Tiny wrapper of futex syscall"
+keywords = ["futex", "Linux", "mutex", "ulrich-drepper"]
+description = "Ulrich Drepper's mutex using futex implementation in Rust"
 
 [dependencies]
 libc = "0.2"
