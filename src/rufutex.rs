@@ -72,6 +72,21 @@ impl SharedFutex {
         }
     }
 
+    /// Post a futex
+    /// # Arguments
+    /// * `number_of_waiters` - The number of waiters to notify
+    /// # Returns
+    /// Nothing
+    pub fn post_with_value(&mut self, value: u32, number_of_waiters: u32) {
+        unsafe {
+            (*self.atom).store(value, SeqCst);
+            let s = self.syscall_futex(libc::FUTEX_WAKE, number_of_waiters, 0);
+            if s == INVALID_FD {
+                panic!("futex-FUTEX_WAKE");
+            }
+        }
+    }
+
     /// Wait on a futex
     /// # Arguments
     /// * `wait_value` - The value to wait on
