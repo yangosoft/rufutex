@@ -75,6 +75,7 @@ impl SharedFutex {
     /// Post a futex
     /// # Arguments
     /// * `number_of_waiters` - The number of waiters to notify
+    /// * `value` - The value to set the futex to
     /// # Returns
     /// Nothing
     pub fn post_with_value(&mut self, value: u32, number_of_waiters: u32) {
@@ -84,6 +85,17 @@ impl SharedFutex {
             if s == INVALID_FD {
                 panic!("futex-FUTEX_WAKE");
             }
+        }
+    }
+
+    /// Sets the value of the futex
+    /// # Arguments
+    /// * `value` - The value to set the futex to
+    /// # Returns
+    /// Nothing
+    pub fn set_futex_value(&mut self, value: u32) {
+        unsafe {
+            (*self.atom).store(value, SeqCst);
         }
     }
 
