@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU32, Ordering::SeqCst};
 /// UNLOCKED 0 means unlocked
 /// LOCKED_NO_WAITERS 1 means locked, no waiters
 /// LOCKED_WAITERS 2 means locked, there are waiters in lock()
-use crate::{INVALID_FD, LOCKED_NO_WAITERS, LOCKED_WAITERS, UNLOCKED};
+use crate::{LOCKED_NO_WAITERS, LOCKED_WAITERS, UNLOCKED};
 
 pub struct SharedFutex {
     pub futex: *mut c_void,
@@ -58,17 +58,34 @@ impl SharedFutex {
         libc::syscall(libc::SYS_futex, self.futex, futex_op, value, 0, 0, val3)
     }
 
+    /// Syscall futex
+    /// # Arguments
+    /// * `futex_op` - The futex operation
+    /// * `value` - The value to pass to the futex operation
+    /// * `val2` - The second value to pass to the futex operation
+    /// * `val3` - The third value to pass to the futex operation
+    /// # Returns
+    /// The result of the syscall
+    pub unsafe fn syscall_futex3(
+        &mut self,
+        futex_op: i32,
+        value: u32,
+        val2: u32,
+        val3: u32,
+    ) -> i64 {
+        libc::syscall(libc::SYS_futex, self.futex, futex_op, value, 0, val2, val3)
+    }
+
     /// Post a futex
     /// # Arguments
     /// * `number_of_waiters` - The number of waiters to notify
     /// # Returns
+    /// the ret value of the syscall
     /// Nothing
-    pub fn post(&mut self, number_of_waiters: u32) {
+    pub fn post(&mut self, number_of_waiters: u32) -> i64 {
         unsafe {
             let s = self.syscall_futex(libc::FUTEX_WAKE, number_of_waiters, 0);
-            if s == INVALID_FD {
-                panic!("futex-FUTEX_WAKE");
-            }
+            s
         }
     }
 
@@ -77,14 +94,13 @@ impl SharedFutex {
     /// * `number_of_waiters` - The number of waiters to notify
     /// * `value` - The value to set the futex to
     /// # Returns
+    /// the ret value of the syscall
     /// Nothing
-    pub fn post_with_value(&mut self, value: u32, number_of_waiters: u32) {
+    pub fn post_with_value(&mut self, value: u32, number_of_waiters: u32) -> i64 {
         unsafe {
             (*self.atom).store(value, SeqCst);
             let s = self.syscall_futex(libc::FUTEX_WAKE, number_of_waiters, 0);
-            if s == INVALID_FD {
-                panic!("futex-FUTEX_WAKE");
-            }
+            s
         }
     }
 
@@ -103,16 +119,26 @@ impl SharedFutex {
     /// # Arguments
     /// * `wait_value` - The value to wait on
     /// # Returns
-    /// Nothing
-    /// # Panics
-    /// If the syscall fails
-    pub fn wait(&mut self, wait_value: u32) {
+    /// the ret value of the syscall
+    pub fn wait(&mut self, wait_value: u32) -> i64 {
         unsafe {
             let ret = self.syscall_futex(libc::FUTEX_WAIT, wait_value, 0);
 
-            if ret == INVALID_FD && *libc::__errno_location() != libc::EAGAIN {
-                panic!("futex-FUTEX_WAIT");
-            }
+            ret
+        }
+    }
+
+    /// Wait on a futex
+    /// # Arguments
+    /// * `wait_value` - The value to wait on
+    /// # Returns
+    /// the ret value of the syscall
+    pub fn wait_with_timeout(&mut self, wait_value: u32, timeout: *mut libc::timespec) -> i64 {
+        unsafe {
+            let ptr_timeout: u32 = timeout as u32;
+            let ret = self.syscall_futex3(libc::FUTEX_WAIT, wait_value, ptr_timeout, 0);
+
+            ret
         }
     }
 
