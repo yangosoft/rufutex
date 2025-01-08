@@ -41,8 +41,6 @@ fn main() {
     println!("Main Thread id {:?} unlocking", thread::current().id());
     shared_futex.unlock(1);
 
-    
-
     shared_futex.lock();
     shared_futex.unlock(1);
 
@@ -50,6 +48,7 @@ fn main() {
     for handle in handles {
         handle.join().unwrap();
     }
+
     unsafe {
         let ret = shm.close(true);
         assert!(ret.is_ok());

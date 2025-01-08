@@ -1,5 +1,6 @@
 use libc::c_void;
 //use log::debug;
+
 use std::sync::atomic::{AtomicU32, Ordering::SeqCst};
 
 /// Mutex implementation based on https://eli.thegreenplace.net/2018/basics-of-futexes/ of the
@@ -73,7 +74,33 @@ impl SharedFutex {
         val2: u32,
         val3: u32,
     ) -> i64 {
-        libc::syscall(libc::SYS_futex, self.futex, futex_op, value, 0, val2, val3)
+        libc::syscall(libc::SYS_futex, self.futex, futex_op, value, val2, 0, val3)
+    }
+
+    /// Syscall futex
+    /// # Arguments
+    /// * `futex_op` - The futex operation
+    /// * `value` - The value to pass to the futex operation
+    /// * `timeout` - The timespec value to pass to the futex operation
+    /// * `val3` - The third value to pass to the futex operation
+    /// # Returns
+    /// The result of the syscall
+    pub unsafe fn syscall_futex3_wait(
+        &mut self,
+        futex_op: i32,
+        value: u32,
+        timeout: *const libc::timespec,
+        val3: u32,
+    ) -> i64 {
+        libc::syscall(
+            libc::SYS_futex,
+            self.futex,
+            futex_op,
+            value,
+            timeout,
+            0,
+            val3,
+        )
     }
 
     /// Post a futex
@@ -115,6 +142,19 @@ impl SharedFutex {
         }
     }
 
+    /// Sets the value of the futex
+    /// # Arguments
+    /// * `value` - The value to set the futex to
+    /// # Returns
+    /// Nothing
+    pub fn get_futex_value(&mut self) -> u32 {
+        let ret: u32;
+        unsafe {
+            ret = (*self.atom).load(SeqCst);
+        }
+        ret
+    }
+
     /// Wait on a futex
     /// # Arguments
     /// * `wait_value` - The value to wait on
@@ -133,11 +173,10 @@ impl SharedFutex {
     /// * `wait_value` - The value to wait on
     /// # Returns
     /// the ret value of the syscall
-    pub fn wait_with_timeout(&mut self, wait_value: u32, timeout: *mut libc::timespec) -> i64 {
+    pub fn wait_with_timeout(&mut self, wait_value: u32, timeout: libc::timespec) -> i64 {
+        let timeout = timeout;
         unsafe {
-            let ptr_timeout: u32 = timeout as u32;
-            let ret = self.syscall_futex3(libc::FUTEX_WAIT, wait_value, ptr_timeout, 0);
-
+            let ret = self.syscall_futex3_wait(libc::FUTEX_WAIT, wait_value, &timeout, 0);
             ret
         }
     }
@@ -382,6 +421,31 @@ mod tests {
         shared_futex.unlock(1);
         shared_futex.lock();
         shared_futex.unlock(1);
+
+        // Cleanup
+        unsafe {
+            let ret = shm.close(true);
+            assert!(ret.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_shared_lock_timeout() {
+        let mut shm = POSIXShm::<i32>::new("test_shared_lock_timeout".to_string(), 8);
+        unsafe {
+            let ret = shm.open();
+            assert!(ret.is_ok());
+        }
+        let ptr_shm = shm.get_cptr_mut();
+        let mut shared_futex = SharedFutex::new(ptr_shm);
+        let wait_time = libc::timespec {
+            tv_sec: 0,
+            tv_nsec: 500 * 1000 * 1000,
+        };
+
+        shared_futex.set_futex_value(1);
+
+        shared_futex.wait_with_timeout(1, wait_time);
 
         // Cleanup
         unsafe {
